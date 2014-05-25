@@ -1,8 +1,9 @@
-local page_set_title, json = page_set_title, require 'dkjson'
-local url, http = require 'socket.url', require 'socket.http'
-local url_escape = function (s) local v = url.escape(s); return v end
-local config, tconcat = settings.migrate, table.concat
-local ltn12 = require'ltn12'
+local page_set_title, add_js, theme, type = page_set_title, add_js, theme, type
+local url, pairs, json = require 'socket.url', pairs, require 'dkjson'
+local url_escape, l = function (s) local v = url.escape(s); return v end, l
+local config, tconcat, modules = settings.migrate, table.concat, ophal.modules
+local ltn12, arg, setmetatable = require'ltn12', arg, setmetatable
+local require = require
 
 local request_get_body = request_get_body
 
@@ -10,35 +11,27 @@ local debug = debug
 
 module 'ophal.modules.migrate'
 
-local function api_call(uri, request_body)
-  if request_body == nil then
-    request_body = {}
-  end
-  request_body.token = config.token
+local user
 
-  local response_body = {}
-  local request_uri = ''
-  local output = {}
-
-  request_uri = config.base_uri .. '/' .. (uri or '')
-  request_body = json.encode(request_body)
-
-  local res, code, headers = http.request{
-    url = request_uri,
-    method = 'POST',
-    headers = {
-      ['content-length'] = request_body:len(),
-    },
-    source = ltn12.source.string(request_body),
-    sink = ltn12.sink.table(response_body),
-  }
-
-  if res == 1 then
-    output.response = json.decode(tconcat(response_body) or '')
-  end
-
-  return output
+--[[
+  Implements hook_user().
+]]
+function init()
+  user = modules.user
 end
+
+local migration = {
+  __index = function (t, k)
+    if k == 'load' then
+      return function (t, config)
+        local library = require(t.library_path)
+        library.info = t
+        library.config = config
+        return library
+      end
+    end
+  end
+}
 
 function test()
   return '<p>Request:</p><p>' .. request_get_body() .. '</p>'
@@ -47,7 +40,7 @@ end
 --[[
   Implements hook menu().
 ]]
-function menu()
+function route()
   local items = {}
 
   items['test'] = {
@@ -56,10 +49,18 @@ function menu()
 
   items['admin/config/migrate'] = {
     page_callback = 'config_page',
+    access_callback = {module = 'user', 'access', 'administer migrations'},
   }
 
   items['admin/content/migrate'] = {
     page_callback = 'wizard_page',
+    access_callback = {module = 'user', 'access', 'run migrations'},
+  }
+
+  items.migrate = {
+    page_callback = 'migrate_service',
+    access_callback = {module = 'user', 'access', 'run migrations'},
+    format = 'json',
   }
 
   return items
@@ -69,7 +70,98 @@ function config_page()
   return 'TODO'
 end
 
+function get_migrations()
+  local err
+  local migrations, item = {}
+
+  for name, m in pairs(modules) do
+    if m.migration then
+      item, err = m.migration() -- call hook implementation
+      if err then
+        return nil, err
+      end
+      for k, v in pairs(item) do
+        setmetatable(v, migration)
+        migrations[k] = v:load(config[k])
+      end
+    end
+  end
+
+  return migrations
+end
+
 function wizard_page()
+  local id, task, migrations, source, response
+  local output = {}
+
+  add_js 'modules/migrate/migrate.js'
+
   page_set_title 'Migrate wizard'
-  return debug.print_r(api_call('count/node'),true)
+
+  migrations = get_migrations()
+
+  id = arg(3)
+  source = arg(4)
+  if id ~= nil then
+    if source ~= nil then
+      task = migrations[id].tasks[source]
+      page_set_title(('Migrate wizard: %s > %s'):format(config[id].description, task.description))
+      add_js{
+        {[id] = {source = source}},
+        namespace = 'migrate', type = 'settings'
+      }
+      add_js{("Ophal.migrate.start('%s')"):format(id), type = 'inline'}
+      output[1 + #output] = ('<div id="migrate_%s">'):format(id)
+      output[1 + #output] = '<p>'
+      output[1 + #output] = 'Number of objects: <span class="total"></span><br />'
+      output[1 + #output] = 'Current object: <span class="current"></span><br />'
+      output[1 + #output] = '</p>'
+      output[1 + #output] = theme{'progress'}
+      output[1 + #output] = '</div>'
+    else
+      page_set_title(('Migrate wizard: %s'):format(config[id].description))
+      output[1 + #output] = '<ul>'
+      for j, task in pairs(migrations[id].tasks) do
+        output[1 + #output] = '<li>'
+        output[1 + #output] = l(task.description, ('admin/content/migrate/%s/%s'):format(id, j) or j)
+        output[1 + #output] = '</li>'
+      end
+      output[1 + #output] = '</ul>'
+    end
+  else
+    output[1 + #output] = '<p>Available migrations:</p>'
+    output[1 + #output] = '<ul>'
+    for k, id in pairs(config) do
+      output[1 + #output] = '<li>'
+      output[1 + #output] = l(('%s (%s)'):format(id.description or k, migrations[k].info.type), ('admin/content/migrate/%s'):format(k))
+      output[1 + #output] = '</li>'
+    end
+    output[1 + #output] = '</ul>'
+  end
+
+  return tconcat(output)
+end
+
+function migrate_service()
+  local input, parsed, pos, err, task, migrations
+  local output = {}
+
+  input = request_get_body()
+  parsed, pos, err = json.decode(input, 1, nil)
+  migrations = get_migrations()
+
+  if err then
+    output.error = err
+  elseif 'table' == type(parsed) then
+    task = migrations[parsed.id].tasks[parsed.source]
+    if parsed.action == 'count' then
+      output.count = (task.count() or {}).total
+    elseif parsed.action == 'list' then
+      output.list = task.list(parsed.last_id)
+    elseif parsed.action == 'import' then
+      output.imported = task.fetch(parsed.object_id)
+    end
+  end
+
+  return output
 end
