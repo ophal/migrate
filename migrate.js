@@ -13,7 +13,7 @@ Ophal.extend('migrate', function($) {
             params.count++;
             Ophal.progress('#migrate_' + params.id, Math.round(params.count/params.total*100));
             if (params.list[params.pos]) {
-              //~ importer_loop(params);
+              importer_loop(params);
             }
             else {
               params.complete(params.count);
