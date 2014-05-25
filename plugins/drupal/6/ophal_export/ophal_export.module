@@ -1,0 +1,96 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function ophal_export_menu() {
+  $items['ophal_export'] = array(
+    'page callback' => 'ophal_export_router',
+    'access callback' => TRUE,
+  );
+  return $items;
+}
+
+function ophal_export_router($action, $class, $id = NULL) {
+  $request_body = file_get_contents('php://input');
+
+  $values = json_decode($request_body);
+
+  if ($values->token != 'YOUR TOKEN HERE') {
+    header('403 Forbidden');
+    die();
+  }
+
+  header('content-type: application/json; charset=utf-8');
+
+  if ($action == 'count') {
+    if ($class == 'node') {
+      $res = db_query('SELECT COUNT(*) total FROM {node};');
+      $count = db_fetch_object($res);
+      $total = $count->total;
+    }
+    elseif ($class == 'comment') {
+      $res = db_query('SELECT COUNT(*) total FROM {comments};');
+      $count = db_fetch_object($res);
+      $total = $count->total;
+    }
+    elseif ($class == 'user') {
+      $res = db_query('SELECT COUNT(*) total FROM {users};');
+      $count = db_fetch_object($res);
+      $total = $count->total;
+    }
+    elseif ($class == 'alias') {
+      $res = db_query("SELECT COUNT(*) total FROM {url_alias} WHERE src like 'node/%';");
+      $count = db_fetch_object($res);
+      $total = $count->total;
+    }
+    $object = (object)array('total' => $total);
+  }
+  elseif ($action == 'list') {
+    if ($class == 'node') {
+      $res = db_query('SELECT GROUP_CONCAT(nid) list FROM (SELECT nid FROM {node} WHERE nid > %d LIMIT 0, 100) list', $id);
+      $list = db_fetch_object($res);
+      $object = explode(',', $list->list);
+    }
+    elseif ($class == 'comment') {
+      $res = db_query('SELECT GROUP_CONCAT(cid) list FROM (SELECT cid FROM {comments} WHERE cid > %d LIMIT 0, 100) list', $id);
+      $list = db_fetch_object($res);
+      $object = explode(',', $list->list);
+    }
+    elseif ($class == 'user') {
+      $res = db_query('SELECT GROUP_CONCAT(uid) list FROM (SELECT uid FROM {users} WHERE uid > %d LIMIT 0, 100) list', $id);
+      $list = db_fetch_object($res);
+      $object = explode(',', $list->list);
+    }
+    elseif ($class == 'alias') {
+      $res = db_query("SELECT GROUP_CONCAT(pid) list FROM (SELECT pid FROM {url_alias} WHERE pid > %d AND src like 'node/%' LIMIT 0, 100) list", $id);
+      $list = db_fetch_object($res);
+      $object = explode(',', $list->list);
+    }
+
+  }
+  elseif($action == 'fetch') {
+    switch ($class) {
+      case 'user':
+        $object = user_load($id);
+        break;
+      case 'node':
+        $object = node_load($id);
+        break;
+      case 'comment':
+        $res = db_query('SELECT * FROM {comments} WHERE cid = %d', $id);
+        $object = db_fetch_object($res);
+        break;
+      case 'alias':
+        $res = db_query('SELECT * FROM {url_alias} WHERE cid = %d', $id);
+        $object = db_fetch_object($res);
+        break;
+
+    }
+  }
+
+  print json_encode($object);
+
+  exit();
+}
+

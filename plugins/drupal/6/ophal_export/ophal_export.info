@@ -1,0 +1,3 @@
+name = Ophal Export
+description = Helper to export Drupal settings and objects to Ophal
+core = 6.x
