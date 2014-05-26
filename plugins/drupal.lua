@@ -83,13 +83,21 @@ m.tasks = {
     list = function(last_id)
       last_id = last_id or 0
       local rs = m:api_call('list/alias/' .. last_id) or {}
-      debug.log(rs)
       return rs.response
     end,
     fetch = function(id)
       local rs = m:api_call('fetch/alias/' .. id) or {}
-      debug.log(rs)
       return rs.response
+    end,
+    import = function (t, id)
+      local data = t.fetch(id)
+      if data then
+        return route_create_alias {
+          source = data.src,
+          alias = data.dst,
+          language = data.language,
+        }
+      end
     end,
   },
 }

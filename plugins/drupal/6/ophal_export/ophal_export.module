@@ -82,10 +82,9 @@ function ophal_export_router($action, $class, $id = NULL) {
         $object = db_fetch_object($res);
         break;
       case 'alias':
-        $res = db_query('SELECT * FROM {url_alias} WHERE cid = %d', $id);
+        $res = db_query('SELECT * FROM {url_alias} WHERE pid = %d', $id);
         $object = db_fetch_object($res);
         break;
-
     }
   }
 
