@@ -159,7 +159,7 @@ function migrate_service()
     elseif parsed.action == 'list' then
       output.list = task.list(parsed.last_id)
     elseif parsed.action == 'import' then
-      output.imported = task.fetch(parsed.object_id)
+      output.imported = task:import(parsed.object_id)
     end
   end
 

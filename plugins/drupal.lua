@@ -1,5 +1,5 @@
 local json, http = require 'dkjson', require 'socket.http'
-local tconcat = table.concat
+local tconcat, modules = table.concat, ophal.modules
 
 local m = {}
 
@@ -51,8 +51,27 @@ m.tasks = {
     end,
     fetch = function(id)
       local rs = m:api_call('fetch/comment/' .. id) or {}
-      debug.log(rs)
       return rs.response
+    end,
+    import = function(t, id)
+      local data = t.fetch(id)
+      if data then
+        return modules.comment.create {
+          id = data.cid,
+          entity_id = data.nid,
+          parent_id = data.pid,
+          user_id = data.uid,
+          body = data.comment,
+          created = data.timestamp,
+          status = data.status,
+          subject = data.subject,
+          hostname = data.hostname,
+          format = data.format,
+          name = data.name,
+          mail = data.mail,
+          homepage = data.homepage,
+        }
+      end
     end,
   },
   alias = {
