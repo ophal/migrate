@@ -70,7 +70,7 @@ m.tasks = {
     import = function(t, id)
       local data = t.fetch(id)
       if data then
-        return modules.comment.create {
+        local entity = {
           id = data.cid,
           entity_id = data.nid,
           parent_id = data.pid,
@@ -78,13 +78,9 @@ m.tasks = {
           body = data.comment,
           created = data.timestamp,
           status = data.status,
-          subject = data.subject,
-          hostname = data.hostname,
-          format = data.format,
-          name = data.name,
-          mail = data.mail,
-          homepage = data.homepage,
         }
+        module_invoke_all('migrate_before_create', 'drupal', 'comment', entity, data)
+        return modules.comment.create(entity)
       end
     end,
   },
