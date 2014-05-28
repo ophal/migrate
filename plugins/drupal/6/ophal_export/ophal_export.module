@@ -37,7 +37,7 @@ function ophal_export_router($action, $class, $id = NULL) {
     elseif ($class == 'user') {
       $res = db_query('SELECT COUNT(*) total FROM {users};');
       $count = db_fetch_object($res);
-      $total = $count->total;
+      $total = $count->total - 1; // user  "anonymous" is not exported
     }
     elseif ($class == 'alias') {
       $res = db_query("SELECT COUNT(*) total FROM {url_alias} WHERE src like 'node/%';");
