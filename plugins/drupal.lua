@@ -17,8 +17,28 @@ m.tasks = {
     end,
     fetch = function(id)
       local rs = m:api_call('fetch/node/' .. id) or {}
-      debug.log(rs)
       return rs.response
+    end,
+    import = function(t, id)
+      local data = t.fetch(id)
+      if data then
+        local entity = {
+          id = data.nid,
+          user_id = data.uid,
+          language = data.language,
+          title = data.title,
+          teaser = data.teaser,
+          body = data.body,
+          created = data.created,
+          changed = data.changed,
+          status = data.status,
+          sticky = data.sticky,
+          comment = data.comment,
+          promote = data.promote,
+        }
+        module_invoke_all('migrate_before_create', 'drupal', 'content', entity, data)
+        return modules.content.create(entity)
+      end
     end,
   },
   user = {
