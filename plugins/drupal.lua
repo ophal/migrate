@@ -124,6 +124,7 @@ m.tasks = {
       if data then
         return route_create_alias {
           source = data.src,
+          id = data.pid,
           alias = data.dst,
           language = data.language,
         }
