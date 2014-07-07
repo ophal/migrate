@@ -12,6 +12,8 @@ function ophal_export_menu() {
 }
 
 function ophal_export_router($action, $class, $id = NULL) {
+  global $db_type;
+
   $request_body = file_get_contents('php://input');
 
   $values = json_decode($request_body);
@@ -47,27 +49,35 @@ function ophal_export_router($action, $class, $id = NULL) {
     $object = (object)array('total' => $total);
   }
   elseif ($action == 'list') {
+    if ($db_type == 'mysql' or $db_type == 'mysqli') {
+      $group_field = 'GROUP_CONCAT(id)';
+      $limit = 'LIMIT 0, 100';
+    }
+    elseif ($db_type == 'pgsql') {
+      $group_field = "array_to_string(array_agg(id), ',')";
+      $limit = 'LIMIT 100 OFFSET 0';
+    }
+
     if ($class == 'node') {
-      $res = db_query('SELECT GROUP_CONCAT(nid) list FROM (SELECT nid FROM {node} WHERE nid > %d ORDER BY nid LIMIT 0, 100) list', $id);
+      $res = db_query('SELECT ' . $group_field . ' list FROM (SELECT nid id FROM {node} WHERE nid > %d ORDER BY nid ' . $limit . ') list', $id);
       $list = db_fetch_object($res);
       $object = explode(',', $list->list);
     }
     elseif ($class == 'comment') {
-      $res = db_query('SELECT GROUP_CONCAT(cid) list FROM (SELECT cid FROM {comments} WHERE cid > %d ORDER BY cid LIMIT 0, 100) list', $id);
+      $res = db_query('SELECT ' . $group_field . ' list FROM (SELECT cid id FROM {comments} WHERE cid > %d ORDER BY cid ' . $limit . ') list', $id);
       $list = db_fetch_object($res);
       $object = explode(',', $list->list);
     }
     elseif ($class == 'user') {
-      $res = db_query('SELECT GROUP_CONCAT(uid) list FROM (SELECT uid FROM {users} WHERE uid > %d ORDER BY uid LIMIT 0, 100) list', $id);
+      $res = db_query('SELECT ' . $group_field . ' list FROM (SELECT uid id FROM {users} WHERE uid > %d ORDER BY uid ' . $limit . ') list', $id);
       $list = db_fetch_object($res);
       $object = explode(',', $list->list);
     }
     elseif ($class == 'alias') {
-      $res = db_query("SELECT GROUP_CONCAT(pid) list FROM (SELECT pid FROM {url_alias} WHERE pid > %d AND src like 'node/%' ORDER BY pid LIMIT 0, 100) list", $id);
+      $res = db_query('SELECT ' . $group_field . " list FROM (SELECT pid id FROM {url_alias} WHERE pid > %d ORDER BY pid " . $limit . ') list', $id);
       $list = db_fetch_object($res);
       $object = explode(',', $list->list);
     }
-
   }
   elseif($action == 'fetch') {
     switch ($class) {
