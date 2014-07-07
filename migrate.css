@@ -1,0 +1,6 @@
+
+.migrate-progress .progress .meter {
+  display: block;
+  background-color: lightblue;
+  height: 1.5em;
+}

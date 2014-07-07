@@ -3,7 +3,7 @@ local url, pairs, json = require 'socket.url', pairs, require 'dkjson'
 local url_escape, l = function (s) local v = url.escape(s); return v end, l
 local config, tconcat, modules = settings.migrate, table.concat, ophal.modules
 local ltn12, arg, setmetatable = require'ltn12', arg, setmetatable
-local require = require
+local require, add_css = require, add_css
 
 local request_get_body = request_get_body
 
@@ -94,6 +94,7 @@ function wizard_page()
   local id, task, migrations, source, response
   local output = {}
 
+  add_css 'modules/migrate/migrate.css'
   add_js 'modules/migrate/migrate.js'
 
   page_set_title 'Migrate wizard'
@@ -111,7 +112,7 @@ function wizard_page()
         namespace = 'migrate', type = 'settings'
       }
       add_js{("Ophal.migrate.start('%s')"):format(id), type = 'inline'}
-      output[1 + #output] = ('<div id="migrate_%s">'):format(id)
+      output[1 + #output] = ('<div id="migrate_%s" class="migrate-progress">'):format(id)
       output[1 + #output] = '<p>'
       output[1 + #output] = 'Number of objects: <span class="total"></span><br />'
       output[1 + #output] = 'Current object: <span class="current"></span><br />'
