@@ -17,9 +17,10 @@ function ophal_export_router($action, $class, $id = NULL) {
   $request_body = file_get_contents('php://input');
 
   $values = json_decode($request_body);
+  $secret_token = variable_get('ophal_export_token', '');
 
-  if ($values->token != 'YOUR TOKEN HERE') {
-    header('403 Forbidden');
+  if ($values->token != $secret_token) {
+    header('Status: 403 Forbidden');
     die();
   }
 
