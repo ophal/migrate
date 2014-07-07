@@ -123,8 +123,8 @@ m.tasks = {
       local data = t.fetch(id)
       if data then
         return route_create_alias {
-          source = data.src,
           id = data.pid,
+          source = data.src:gsub('node/', 'content/'),
           alias = data.dst,
           language = data.language,
         }
