@@ -2,7 +2,7 @@ local page_set_title, add_js, theme, type = page_set_title, add_js, theme, type
 local url, pairs, json = require 'socket.url', pairs, require 'dkjson'
 local url_escape, l = function (s) local v = url.escape(s); return v end, l
 local config, tconcat, modules = settings.migrate, table.concat, ophal.modules
-local ltn12, arg, setmetatable = require'ltn12', arg, setmetatable
+local ltn12, arg, setmetatable = require'ltn12', route_arg, setmetatable
 local require, add_css = require, add_css
 
 local request_get_body = request_get_body
